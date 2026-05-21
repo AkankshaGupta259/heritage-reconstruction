@@ -2,7 +2,9 @@
 
 Alternate codes  
 OG: !pip install -r requirements.txt --quiet
-ALT: %%writefile requirements.txt
+ALT: 
+```txt
+%%writefile requirements.txt
 torch
 torchvision
 opencv-python
@@ -38,6 +40,6 @@ hloc @ git+https://github.com/cvg/Hierarchical-Localization.git
 # Metrics
 lpips==0.1.4
 pytorch-msssim==0.2.1
-
+```
 
 
