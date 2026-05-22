@@ -57,57 +57,68 @@ def train(config):
     model.train()
     data_iter = iter(loader)
     
-    for iteration in range(start_iter, config['total_iters']):
-        try:
-            lr_imgs, hr_imgs = next(data_iter)
-        except StopIteration:
-            data_iter = iter(loader)
-            lr_imgs, hr_imgs = next(data_iter)
-        
-        lr_imgs = lr_imgs.to(device)
-        hr_imgs = hr_imgs.to(device)
-        
-        # Forward pass
-        sr_imgs = model(lr_imgs)
-        
-        # Compute L1 loss (Equation 10)
-        loss = criterion(sr_imgs, hr_imgs)
-        
-        # Backward pass
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        scheduler.step()
-        
-        # Logging
-        if iteration % 100 == 0:
-            print(f"Iter {iteration}/{config['total_iters']} | "
-                  f"Loss: {loss.item():.6f} | "
-                  f"LR: {scheduler.get_last_lr()[0]:.2e}")
-        
-        # ─── CHECKPOINT every 500 iterations ─────────────────────
-        # CRITICAL: This saves to Google Drive so either person can 
-        # pick up training from where the other left off.
-        if iteration % 500 == 0 and iteration > 0:
-            torch.save({
-                'model':     model.state_dict(),
-                'optimizer': optimizer.state_dict(),
-                'iteration': iteration,
-                'loss':      loss.item(),
-            }, ckpt_path)
+    try: 
+        for iteration in range(start_iter, config['total_iters']):
+            try:  #Notice how this is indented 4 spaces further than the 'for' loop
+                lr_imgs, hr_imgs = next(data_iter)
+            except StopIteration:
+                data_iter = iter(loader)
+                lr_imgs, hr_imgs = next(data_iter)
             
-            # Also save a milestone copy every 5000 iterations
-            if iteration % 5000 == 0:
-                milestone_path = os.path.join(
-                    config['ckpt_dir'], f'sr_iter_{iteration}.pth'
-                )
-                torch.save({'model': model.state_dict(),
-                            'iteration': iteration}, milestone_path)
-                print(f"💾 Milestone checkpoint saved: {milestone_path}")
-            else:
-                print(f"💾 Checkpoint saved at iter {iteration}")
-    
-    print("Training complete!")
+            lr_imgs = lr_imgs.to(device)
+            hr_imgs = hr_imgs.to(device)
+            
+            # Forward pass
+            sr_imgs = model(lr_imgs)
+            
+            # Compute L1 loss (Equation 10)
+            loss = criterion(sr_imgs, hr_imgs)
+            
+            # Backward pass
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            scheduler.step()
+            
+            # Logging
+            if iteration % 100 == 0:
+                print(f"Iter {iteration}/{config['total_iters']} | "
+                      f"Loss: {loss.item():.6f} | "
+                      f"LR: {scheduler.get_last_lr()[0]:.2e}")
+            
+            # ─── CHECKPOINT every 500 iterations ─────────────────────
+            # CRITICAL: This saves to Google Drive so either person can 
+            # pick up training from where the other left off.
+            if iteration % 500 == 0 and iteration > 0:
+                torch.save({
+                    'model':     model.state_dict(),
+                    'optimizer': optimizer.state_dict(),
+                    'iteration': iteration,
+                    'loss':      loss.item(),
+                }, ckpt_path)
+                
+                # Also save a milestone copy every 5000 iterations
+                if iteration % 5000 == 0:
+                    milestone_path = os.path.join(
+                        config['ckpt_dir'], f'sr_iter_{iteration}.pth'
+                    )
+                    torch.save({'model': model.state_dict(),
+                                'iteration': iteration}, milestone_path)
+                    print(f"💾 Milestone checkpoint saved: {milestone_path}")
+                else:
+                    print(f"💾 Checkpoint saved at iter {iteration}")
+        
+        # This is outside the for loop, so it only prints when 250k is fully reached
+        print("Training complete!")
+        
+    except KeyboardInterrupt:
+        print(f"\n Training interrupted manually at iteration {iteration}. Forcing a save...")
+        torch.save({
+            'model': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            'iteration': iteration,
+        }, ckpt_path) # Using your dynamic ckpt_path instead of the hardcoded string
+        print(" Manual save complete. Safe to close.")
 
 
 if __name__ == '__main__':
